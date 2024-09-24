@@ -195,6 +195,11 @@ line around the header title."
   :group 'markdown
   :type 'boolean)
 
+(defcustom markdown-indent-indentation-per-level 2
+  "Indentation per level in number of characters."
+  :group 'markdown
+  :type 'integer)
+
 (defcustom markdown-indent-function 'markdown-indent-line
   "Function to use to indent."
   :group 'markdown
@@ -4198,6 +4203,21 @@ and nil otherwise."
   (or (markdown-unwrap-thing-at-point markdown-regex-header-atx 0 2)
       (markdown-unwrap-thing-at-point markdown-regex-header-setext 0 1)))
 
+;; markdown-section-header-level ?
+(defun markdown-section-heading-level ()
+  "Return the level of the heading of the section at point as an integer."
+  (interactive)
+  (let (level)
+    (save-excursion
+      (when (or (thing-at-point-looking-at markdown-regex-header)
+                (re-search-backward markdown-regex-header nil t))
+        ;; level of current or previous header
+        (setq level (markdown-outline-level))
+        ;; match group 1 indicates a setext header
+        (setq setext (match-end 1))))
+    ;; (message "Section heading level: %s" level)
+    level))
+
 (defun markdown-insert-header (&optional level text setext)
   "Insert or replace header markup.
 The level of the header is specified by LEVEL and header text is
@@ -4270,14 +4290,7 @@ markup (atx) or prompt for text (setext).
 See `markdown-insert-header' for more details about how the
 header text is determined."
   (interactive "*P")
-  (let (level)
-    (save-excursion
-      (when (or (thing-at-point-looking-at markdown-regex-header)
-                (re-search-backward markdown-regex-header nil t))
-        ;; level of current or previous header
-        (setq level (markdown-outline-level))
-        ;; match group 1 indicates a setext header
-        (setq setext (match-end 1))))
+  (let ((level (markdown-section-heading-level)))
     ;; check prefix argument
     (cond
      ((and (equal arg '(4)) level (> level 1)) ;; C-u
@@ -5235,10 +5248,50 @@ Otherwise, do normal delete by repeating
         ))
     mincol))
 
+(defsubst markdown-indent-remove-properties (beg end)
+  "Remove indentations between BEG and END."
+  (with-silent-modifications
+    (remove-text-properties beg end '(line-prefix nil wrap-prefix nil))))
+
+;; TODO: Fails if the cursor is on the heading
+(defun markdown-section-start ()
+  (save-excursion
+    (save-match-data
+      (re-search-backward markdown-regex-header nil t)
+      (point))))
+
+;; TODO: Fails if the cursor is on the heading
+(defun markdown-section-end ()
+  (save-excursion
+    (save-match-data
+      (if (re-search-forward markdown-regex-header nil t)
+          (progn
+            (forward-line -1)
+            (end-of-line)
+            (point))
+        (point-max)))))
+
+(defun markdown-indent-disable ()
+  "Remove all indentations created by `markdown-indent-mode'."
+  (interactive)
+  (markdown-indent-remove-properties (point-min) (point-max)))
+
+(defun markdown-indent-section ()
+  "Indent the current region between headings based on the header level."
+  (interactive)
+  (let* ((level (markdown-section-heading-level))
+         (sec-min (markdown-section-start))
+         (sec-max (markdown-section-end))
+         (indent (* level markdown-indent-indentation-per-level))
+         (prefix (make-string indent ?\s)))
+    (with-silent-modifications
+      (add-text-properties sec-min sec-max
+                           `(line-prefix ,prefix wrap-prefix ,prefix)))))
+
 (defun markdown-indent-region (beg end arg)
   "Indent the region from BEG to END using some heuristics.
 When ARG is non-nil, outdent the region instead.
-See `markdown-indent-line' and `markdown-indent-line'."
+See `markdown-indent-line'."
   (interactive "*r\nP")
   (let* ((positions (sort (delete-dups (markdown-calc-indents)) '<))
          (leftmostcol (markdown-find-leftmost-column beg end))
@@ -10388,6 +10441,22 @@ rows and columns and the column alignment."
         (markdown-live-preview-mode -1)
         (user-error "Buffer %s does not visit a file" (current-buffer)))
     (markdown-live-preview-remove)))
+
+
+;; TODO: This docstring is taken right from org-indent-mode
+;;;###autoload
+(define-minor-mode markdown-indent-mode
+  "When active, indent text according to outline structure.
+
+Internally this works by adding `line-prefix' and `wrap-prefix'
+properties, after each buffer modification, on the modified zone.
+
+The process is synchronous.  Though, initial indentation of
+buffer, which can take a few seconds on large buffers, is done
+during idle time."
+  :global t
+  :lighter " Ind")
+
 
 
 (provide 'markdown-mode)
