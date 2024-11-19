@@ -8273,7 +8273,7 @@ Translate filenames using `markdown-filename-translate-function'."
         ;; Add text properties for hiding markup
         (progn
           ;; Propertize opening and closing brackets
-          (remove-text-properties begin end '(font-lock-face nil))
+          ;; (remove-text-properties begin end '(font-lock-face nil))
           (add-text-properties    beg2 end2 markdown--markup-props)
           (add-face-text-property beg2 end2 'markdown-markup-face)
           (add-text-properties    beg6 end6 markdown--markup-props)
@@ -8292,7 +8292,7 @@ Translate filenames using `markdown-filename-translate-function'."
                       (add-text-properties    beg5 end5 '(invisible markdown-markup))
                       (add-face-text-property beg5 end5 'markdown-url-face)
                       (when (and file-missing-p markdown-wiki-link-fontify-missing)
-                        (put-text-property beg3 end3 'font-lock-face 'markdown-missing-link-face)))
+                        (put-text-property beg3 end3 'face 'markdown-missing-link-face)))
                   (progn
                     ;; Properties URL portion of link
                     (add-text-properties    beg3 end3 markdown--url-props)
@@ -8301,13 +8301,13 @@ Translate filenames using `markdown-filename-translate-function'."
                     (add-text-properties    beg5 end5 (markdown--link-props part1))
                     (add-face-text-property beg5 end5 'markdown-link-face)
                     (when (and file-missing-p markdown-wiki-link-fontify-missing)
-                      (put-text-property beg5 end5 'font-lock-face 'markdown-missing-link-face)))))
+                      (put-text-property beg5 end5 'face 'markdown-missing-link-face)))))
             (progn
               ;; Properties link as link text
               (add-text-properties    beg3 end3 (markdown--link-props part1))
               (add-face-text-property beg3 end3 'markdown-link-face)
               (when (and file-missing-p markdown-wiki-link-fontify-missing)
-                (put-text-property beg3 end3 'font-lock-face 'markdown-missing-link-face)))))
+                (put-text-property beg3 end3 'face 'markdown-missing-link-face)))))
         (set-match-data (list begin end))
         t))))
 
@@ -8441,8 +8441,11 @@ in parent directories if
        ;; Possibly search in subdirectories, next.
        ((and (memq 'sub-directories search-types)
              (setq candidates
+                   ;; (directory-files-recursively
+                   ;;  directory (concat "^" default "$"))
                    (directory-files-recursively
-                    directory (concat "^" default "$"))))
+                    directory (concat "^" default "$") nil t)
+                   ))
         (car candidates))
        ;; Possibly search in parent directories as a last resort.
        ((and (memq 'parent-directories search-types)
@@ -8450,8 +8453,11 @@ in parent directories if
         (concat dir default))
        ((and (memq 'project search-types)
              (setq candidates
+                   ;; (directory-files-recursively
+                   ;;  (markdown--project-root) (concat "^" default "$"))
                    (directory-files-recursively
-                    (markdown--project-root) (concat "^" default "$"))))
+                    (markdown--project-root) (concat "^" default "$") nil t)
+                   ))
         (car candidates))
        ;; If nothing is found, return default in current directory.
        (t default)))))

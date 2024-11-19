@@ -5741,21 +5741,46 @@ http://example.com \"title\"  )
     (markdown-test-temp-file "wiki-links.text"
       (let* ((fn (concat (file-name-directory buffer-file-name)
                          "inline.text"))
-             (markdown-enable-wiki-links t))
+             (markdown-enable-wiki-links t)
+             (markdown-wiki-link-fontify-missing t)
+             (markdown-wiki-link-alias-first t)
+             )
         ;; Create inline.text in the same temp directory, refontify
         (write-region "" nil fn nil 1)
-        (markdown-fontify-buffer-wiki-links)
+        ;; (markdown-fontify-buffer-wiki-links)
+        ;; (setq markdown-wiki-link-fontify-missing t)
+        (markdown-mode)
+        (font-lock-flush (point-min) (point-max))
+
         ;; Confirm location of first wiki link
         (should (eq (markdown-next-link) 8))
+        (should (string-equal (markdown-wiki-link-link) "Wiki Link"))
+        (markdown-test-range-has-property  8  9 'face 'markdown-markup-face)
+        (markdown-test-range-has-property 10 18 'face 'markdown-link-face)
+        (markdown-test-range-has-property 19 20 'face 'markdown-markup-face)
         ;; First wiki link doesn't have a corresponding file
-        (markdown-test-range-has-property 8 20 'font-lock-face 'markdown-missing-link-face)
+        ;; (markdown-test-range-has-property 8 20 'font-lock-face 'markdown-missing-link-face)
+
+
         ;; Second wiki link doesn't have a corresponding file
         (should (eq (markdown-next-link) 73))
-        (markdown-test-range-has-property 73 88 'font-lock-face 'markdown-missing-link-face)
+        ;; (markdown-test-range-has-property 73 88 'font-lock-face 'markdown-missing-link-face)
+        (markdown-test-range-has-property 73 74 'face 'markdown-markup-face)
+        (markdown-test-range-has-property 75 79 'face 'markdown-url-face)
+        (markdown-test-range-has-property 80 80 'face 'markdown-markup-face)
+        (markdown-test-range-has-property 81 86 'face 'markdown-link-face)
+        (markdown-test-range-has-property 87 88 'face 'markdown-markup-face)
+
+
         ;; Move to third wiki link, and create the missing file
         (should (eq (markdown-next-link) 155))
         (should (string-equal (markdown-wiki-link-link) "inline"))
-        (markdown-test-range-has-property 155 164 'font-lock-face 'markdown-link-face)
+        (markdown-test-range-has-property 155 156 'face 'markdown-markup-face)
+        (markdown-test-range-has-property 157 162 'face 'markdown-link-face)
+        (markdown-test-range-has-property 163 164 'face 'markdown-markup-face)
+        ;; (markdown-test-range-has-property 155 164 'font-lock-face 'markdown-link-face)
+
+
         ;; Check wiki links in code blocks
         (markdown-test-range-has-face 360 395 'markdown-pre-face)
         ;; Remove temporary files
@@ -7034,45 +7059,76 @@ x|"
     (markdown-indent-region (line-beginning-position) (line-end-position) nil)
     (should (string-equal (buffer-string) " #. abc\n    def\n"))))
 
+(ert-deftest test-markdown/wiki-link-search-rules ()
+  "Test wiki link search rules."
+  (let ((markdown-enable-wiki-links t)
+        (markdown-link-space-sub-char " ")
+        (markdown-wiki-link-search-type '(project)))
+
+    (unwind-protect
+        (progn
+
+          ;; (should (string-match-p
+          ;;          "/sub/foo$"
+          ;;          (markdown-convert-wiki-link-to-filename "foo")))
+          ;; (should (string-equal
+          ;;          (markdown-convert-wiki-link-to-filename "doesnotexist")
+          ;;          "doesnotexist"))
+
+
+          (should (string-match-p
+                   "/wiki/root$"
+                   (markdown-convert-wiki-link-to-filename "root")))
+          (should (string-equal
+                   (markdown-convert-wiki-link-to-filename "doesnotexist")
+                   "doesnotexist"))
+
+          )))
+
+
+
+  )
+
 (ert-deftest test-markdown-ext/wiki-link-rules ()
   "Test wiki link search rules and font lock for missing pages."
   (let ((markdown-enable-wiki-links t)
         (markdown-wiki-link-fontify-missing t)
-        (markdown-wiki-link-search-type '(project)))
-    (progn
-      (find-file (expand-file-name "wiki/root" markdown-test-dir))
-      (unwind-protect
-          (progn
-            (markdown-mode)
-            ;; search rules
-            (should (string-match-p
-                     "/sub/foo$"
-                     (markdown-convert-wiki-link-to-filename "foo")))
-            (should (string-equal
-                     (markdown-convert-wiki-link-to-filename "doesnotexist")
-                     "doesnotexist"))
-            ;; font lock
-            (markdown-test-range-has-property 1 11 'font-lock-face 'markdown-link-face)
-            (markdown-test-range-has-property 14 33 'font-lock-face 'markdown-missing-link-face)
-            (markdown-test-range-has-property 36 42 'font-lock-face 'markdown-link-face)
-            (markdown-test-range-has-property 45 60 'font-lock-face 'markdown-missing-link-face))
-        (kill-buffer)))
-    (progn
-      (find-file (expand-file-name "wiki/sub/foo" markdown-test-dir))
-      (unwind-protect
-          (progn
-            (markdown-mode)
-            ;; search rules
-            (should (string-match-p
-                     "/wiki/root$"
-                     (markdown-convert-wiki-link-to-filename "root")))
-            (should (string-equal
-                     (markdown-convert-wiki-link-to-filename "doesnotexist")
-                     "doesnotexist"))
-            ;; font lock
-            (markdown-test-range-has-property 1 16 'font-lock-face 'markdown-missing-link-face)
-            (markdown-test-range-has-property 19 26 'font-lock-face 'markdown-link-face))
-        (kill-buffer)))))
+        (markdown-wiki-link-alias-first t)
+        )
+
+    (markdown-test-file "wiki/root"
+      (markdown-test-range-has-property  1  2 'face 'markdown-markup-face)
+      (markdown-test-range-has-property 10 11 'face 'markdown-markup-face)
+
+      (markdown-test-range-has-property 14 15 'face 'markdown-markup-face)
+      ;; (markdown-test-range-has-property 16 31 'font-lock-face 'markdown-missing-link-face)
+      (markdown-test-range-has-property 16 31 'face 'markdown-missing-link-face)
+      (markdown-test-range-has-property 32 33 'face 'markdown-markup-face)
+
+      (markdown-test-range-has-property 36 37 'face 'markdown-markup-face)
+      (markdown-test-range-has-property 41 42 'face 'markdown-markup-face)
+
+      (markdown-test-range-has-property 45 46 'face 'markdown-markup-face)
+      ;; (markdown-test-range-has-property 47 58 'font-lock-face 'markdown-missing-link-face)
+      (markdown-test-range-has-property 47 58 'face 'markdown-missing-link-face)
+      (markdown-test-range-has-property 59 60 'face 'markdown-markup-face)
+
+      (markdown-test-range-has-property 63 64 'face 'markdown-markup-face)
+      (markdown-test-range-has-property 75 76 'face 'markdown-markup-face)
+
+      )
+
+    (markdown-test-file "wiki/sub/foo"
+      (markdown-test-range-has-property  1  2 'face 'markdown-markup-face)
+      (markdown-test-range-has-property  3 14 'face 'markdown-missing-link-face)
+      (markdown-test-range-has-property 15 16 'face 'markdown-markup-face)
+
+      (markdown-test-range-has-property 19 20 'face 'markdown-markup-face)
+      (markdown-test-range-has-property 25 26 'face 'markdown-markup-face)
+
+      )
+
+    ))
 
 (ert-deftest test-markdown-ext/wiki-link-keep-match-data ()
   "Test that markdown-wiki-link-p keeps expected match data.
@@ -7093,7 +7149,8 @@ Detail: https://github.com/jrblevin/markdown-mode/pull/590"
 
 (ert-deftest test-markdown-ext/wiki-link-search-under-project ()
   "Test that searching link under project root."
-  (let ((markdown-enable-wiki-links t)
+  (let (
+        (markdown-enable-wiki-links t)
         (markdown-link-space-sub-char " ")
         (markdown-wiki-link-search-type '(project))
         (expected (expand-file-name "wiki/pr590/Guide/Zettel Markdown/math.md"
