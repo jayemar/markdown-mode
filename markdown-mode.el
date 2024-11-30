@@ -59,6 +59,14 @@
 (declare-function file-name-with-extension "files")
 (declare-function yank-media-handler "yank-media")
 
+(defun debug-msg (msg &optional file)
+  ;; (let ((msg (if file
+  ;;                (format "%s in file %s\n" msg file)
+  ;;              (format "%s\n" msg))))
+  ;;   (f-append-text msg 'utf-8 "/tmp/debug.txt"))
+  nil
+  )
+
 
 ;;; Constants =================================================================
 
@@ -3199,15 +3207,27 @@ links with URLs.
 This function should only be used during font-lock, as it
 determines syntax based on the presence of faces for previously
 processed elements."
+
+
+
+
   ;; Search for the next potential link (not in a code block).
+  (debug-msg "Point 1" (buffer-file-name))
   (let ((prohibited-faces '(markdown-pre-face
                             markdown-code-face
                             markdown-inline-code-face
                             markdown-comment-face))
+        (last (min last (point-max)))
         found)
+    (debug-msg "Point 2" (buffer-file-name))
+
+
     (while
+
+        ;; Initial check that we should look harder
         (and (not found) (< (point) last)
              (progn
+               (debug-msg "Point 3" (buffer-file-name))
                ;; Clear match data to test for a match after functions returns.
                (set-match-data nil)
                ;; Preliminary regular expression search so we can return
@@ -3218,19 +3238,32 @@ processed elements."
                 (if ref
                     markdown-regex-link-reference
                   markdown-regex-link-inline)
-                last 'limit)))
+                last
+                'limit)))
+
+
+
       ;; Keep searching if this is in a code block, inline code, or a
       ;; comment, or if it is include syntax. The link text portion
       ;; (group 3) may contain inline code or comments, but the
       ;; markup, URL, and title should not be part of such elements.
+      (debug-msg "Point 4" (buffer-file-name))
       (if (or (markdown-range-property-any
                (match-beginning 0) (match-end 2) 'face prohibited-faces)
               (markdown-range-property-any
                (match-beginning 4) (match-end 0) 'face prohibited-faces)
+              ;; What is a line beginning with << ?
               (and (char-equal (char-after (line-beginning-position)) ?<)
                    (char-equal (char-after (1+ (line-beginning-position))) ?<)))
-          (set-match-data nil)
+          (progn
+            (setq found nil)
+            (set-match-data nil))
         (setq found t))))
+
+
+
+
+  (debug-msg "Point 5" (buffer-file-name))
   ;; Match opening exclamation point (optional) and left bracket.
   (when (match-beginning 2)
     (let* ((bang (match-beginning 1))
@@ -3252,6 +3285,7 @@ processed elements."
            second-begin second-end url-begin url-end
            title-begin title-end)
       ;; When bracket found, in range, and followed by a left paren/bracket...
+      (debug-msg "Point 6" (buffer-file-name))
       (when (and first-end (< first-end end-of-block) (goto-char first-end)
                  (char-equal (char-after (point)) (if ref ?\[ ?\()))
         ;; Scan across balanced expressions for closing parenthesis/bracket.
@@ -3287,7 +3321,12 @@ processed elements."
               (goto-char second-end))
           ;; If no closing parenthesis in range, update continuation point
           (setq cont-point (min end-of-block second-begin))))
+
+
+
+      (debug-msg "Point 7" (buffer-file-name))
       (cond
+       ;; TODO: Is this where the infinite loop occurs?
        ;; On failure, continue searching at cont-point
        ((and cont-point (< cont-point last))
         (goto-char cont-point)
@@ -8073,6 +8112,7 @@ See `markdown-wiki-link-p' for more information."
             (thing-at-point-looking-at markdown-regex-uri)
             (thing-at-point-looking-at markdown-regex-angle-uri))))))
 
+;; TODO: Rename my wiki link function to match this?
 (defun markdown-link-at-pos (pos)
   "Return properties of link or image at position POS.
 Value is a list of elements describing the link:
