@@ -48,7 +48,7 @@ a complete list of keybindings is available using <kbd>C-h m</kbd>
 
 _Note:_ To use all of the features of `markdown-mode`, you'll need
 to install the Emacs package itself and also have a local Markdown
-processor installed (e.g., Markdown.pl, MultiMarkdown, or Pandoc).
+processor installed (e.g., Markdown.pl, MultiMarkdown, Pandoc, or CommonMark).
 The external processor is not required for editing, but will be
 used for rendering HTML for preview and export. After installing
 the Emacs package, be sure to configure `markdown-command` to point
@@ -61,7 +61,7 @@ using `package.el`. First, configure `package.el` and the MELPA Stable
 repository by adding the following to your `.emacs`, `init.el`,
 or equivalent startup file:
 
-```lisp
+```emacs-lisp
 (require 'package)
 (add-to-list 'package-archives
              '("melpa-stable" . "https://stable.melpa.org/packages/"))
@@ -79,7 +79,7 @@ then you can automatically install and configure `markdown-mode` by
 adding a declaration such as this one to your init file (as an
 example; adjust settings as desired):
 
-```lisp
+```emacs-lisp
 (use-package markdown-mode
   :ensure t
   :mode ("README\\.md\\'" . gfm-mode)
@@ -99,7 +99,7 @@ save the file where Emacs can find it (i.e., a directory in your
 `load-path`). You can then configure `markdown-mode` and `gfm-mode`
 to load automatically by adding the following to your init file:
 
-```lisp
+```emacs-lisp
 (autoload 'markdown-mode "markdown-mode"
    "Major mode for editing Markdown files" t)
 (add-to-list 'auto-mode-alist
@@ -133,7 +133,7 @@ repository as above or install markdown-mode from
 If you clone the repository directly, then make sure that Emacs can
 find it by adding the following line to your startup file:
 
-```lisp
+```emacs-lisp
 (add-to-list 'load-path "/path/to/markdown-mode/repository")
 ```
 
@@ -148,7 +148,7 @@ maintainer if not).
    * Ubuntu Linux: [elpa-markdown-mode][elpa-ubuntu] and [emacs-goodies-el][emacs-goodies-el-ubuntu]
    * RedHat and Fedora Linux: [emacs-goodies][]
    * NetBSD: [textproc/markdown-mode][]
-   * MacPorts: [markdown-mode.el][macports-package] ([pending][macports-ticket])
+   * MacPorts: [markdown-mode.el][macports-package]
    * FreeBSD: [textproc/markdown-mode.el][freebsd-port]
 
  [elpa-markdown-mode]: https://packages.debian.org/sid/lisp/elpa-markdown-mode
@@ -157,8 +157,7 @@ maintainer if not).
  [emacs-goodies-el-ubuntu]: http://packages.ubuntu.com/search?keywords=emacs-goodies-el
  [emacs-goodies]: https://apps.fedoraproject.org/packages/emacs-goodies
  [textproc/markdown-mode]: http://pkgsrc.se/textproc/markdown-mode
- [macports-package]: https://trac.macports.org/browser/trunk/dports/editors/markdown-mode.el/Portfile
- [macports-ticket]: http://trac.macports.org/ticket/35716
+ [macports-package]: https://ports.macports.org/port/markdown-mode.el/
  [freebsd-port]: http://svnweb.freebsd.org/ports/head/textproc/markdown-mode.el
 
 **Dependencies**
@@ -179,8 +178,7 @@ tend to be associated with paired delimiters such as <kbd>M-{</kbd> and
 <kbd>M-}</kbd> or <kbd>C-c <</kbd> and <kbd>C-c ></kbd>.  Outline navigation keybindings the
 same as in `org-mode`.  Finally, commands for running Markdown or
 doing maintenance on an open file are grouped under the <kbd>C-c C-c</kbd>
-prefix.  The most commonly used commands are described below. You
-can obtain a list of all keybindings by pressing <kbd>C-c C-h</kbd>.
+prefix.  The most commonly used commands are described below.
 
   * Links and Images: <kbd>C-c C-l</kbd> and <kbd>C-c C-i</kbd>
 
@@ -352,7 +350,7 @@ can obtain a list of all keybindings by pressing <kbd>C-c C-h</kbd>.
     preview window to appear at the bottom or right, you can
     customize `markdown-split-window-direction`.
 
-      ```lisp
+      ```emacs-lisp
       ;; Set custom markdown preview function
       (setq markdown-live-preview-window-function #'my-markdown-preview-function)
 
@@ -774,6 +772,9 @@ provides an interface to all of the possible customizations:
     (default: `t`).  When set to nil, they will be treated as
     `[[PageName|link text]]`.
 
+  * `markdown-wiki-link-retain-case nil` - set a non-nil value not to
+     change wiki link file name case
+
   * `markdown-uri-types` - a list of protocol schemes (e.g., "http")
     for URIs that `markdown-mode` should highlight.
 
@@ -951,18 +952,17 @@ customization screen.
 
 [Marked 2]: https://itunes.apple.com/us/app/marked-2/id890031187?mt=12&uo=4&at=11l5Vs&ct=mm
 
-## Extensions
-
+## Wiki Links Customization
 Besides supporting the basic Markdown syntax, Markdown Mode also
 includes syntax highlighting for `[[Wiki Links]]`.  This can be
 enabled by setting `markdown-enable-wiki-links` to a non-nil value.
-Wiki links may be followed by pressing <kbd>C-c C-o</kbd> when the point
-is at a wiki link.  Use <kbd>M-p</kbd> and <kbd>M-n</kbd> to quickly jump to the
-previous and next links (including links of other types).
+
 Aliased or piped wiki links of the form `[[link text|PageName]]`
-are also supported.  Since some wikis reverse these components, set
+are supported.  Since some wikis reverse these components, set
 `markdown-wiki-link-alias-first` to nil to treat them as
-`[[PageName|link text]]`.  If `markdown-wiki-link-fontify-missing`
+`[[PageName|link text]]`.
+
+If `markdown-wiki-link-fontify-missing`
 is also non-nil, Markdown Mode will highlight wiki links with
 missing target file in a different color.  By default, Markdown
 Mode only searches for target files in the current directory.
@@ -973,17 +973,30 @@ This value type is a symbol list. Possible values are
 - `parent-directories` : search in parent directories
 - `project` : search under project root
 
-[SmartyPants][] support is possible by customizing `markdown-command`.
+## Extensions
+### SmartyPants
+
+[SmartyPants][] is a free tool for easily translating plain ASCII punctuation
+characters into "smart" typographic punctuation HTML entities. It can perform
+the following transformations:
+- straight quotes ( " and ' ) into “curly” quote HTML entities
+- backticks-style quotes (``like this'') into “curly” quote HTML entities
+- dashes (“--” and “---”) into en- and em-dash entities
+- three consecutive dots (“...”) into an ellipsis entity
+
+SmartyPants support is possible by customizing `markdown-command`.
 If you install `SmartyPants.pl` at, say, `/usr/local/bin/smartypants`,
 then you can set `markdown-command` to `"markdown | smartypants"`.
 You can do this either by using <kbd>M-x customize-group markdown</kbd>
 or by placing the following in your `.emacs` file:
 
-```lisp
+```emacs-lisp
 (setq markdown-command "markdown | smartypants")
 ```
 
 [SmartyPants]: http://daringfireball.net/projects/smartypants/
+
+### LaTeX Mathematical Expressions
 
 Syntax highlighting for mathematical expressions written
 in LaTeX (only expressions denoted by `$..$`, `$$..$$`, or `\[..\]`)
@@ -1067,7 +1080,7 @@ by `markdown-mode` and `gfm-mode` as described below.
   for line wrapping in buffers.  You can do this with a
   `gfm-mode-hook` as follows:
 
-    ```lisp
+    ```emacs-lisp
     ;; Use visual-line-mode in gfm-mode
     (defun my-gfm-mode-hook ()
       (visual-line-mode 1))
@@ -1075,13 +1088,13 @@ by `markdown-mode` and `gfm-mode` as described below.
     ```
 
 * **Preview:** GFM-specific preview can be powered by setting
-  `markdown-command` to use [Docter][].  This may also be
+  `markdown-command` to use [marked][].  This may also be
   configured to work with [Marked 2][] for `markdown-open-command`.
 
 [GFM]: http://github.github.com/github-flavored-markdown/
 [GFM comments]: https://help.github.com/articles/writing-on-github/
 [since 2014]: https://github.com/blog/1825-task-lists-in-all-markdown-documents
-[Docter]: https://github.com/alampros/Docter
+[marked]: https://marked.js.org/
 
 ## Acknowledgments
 
@@ -1125,6 +1138,7 @@ first version was released on May 24, 2007.
   * 2020-05-30: [Version 2.4][]
   * 2022-02-12: [Version 2.5][]
   * 2023-08-30: [Version 2.6][]
+  * 2025-02-26: [Version 2.7][]
 
 [Version 1.1]: https://jblevins.org/projects/markdown-mode/rev-1-1
 [Version 1.2]: https://jblevins.org/projects/markdown-mode/rev-1-2
@@ -1143,3 +1157,4 @@ first version was released on May 24, 2007.
 [Version 2.4]: https://github.com/jrblevin/markdown-mode/releases/tag/v2.4
 [Version 2.5]: https://github.com/jrblevin/markdown-mode/releases/tag/v2.5
 [Version 2.6]: https://github.com/jrblevin/markdown-mode/releases/tag/v2.6
+[Version 2.7]: https://github.com/jrblevin/markdown-mode/releases/tag/v2.7

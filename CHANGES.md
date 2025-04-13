@@ -1,6 +1,31 @@
-# Markdown Mode 2.7
+# Markdown Mode 2.8
 
 *Under development*
+
+*   **Breaking changes:**
+    - GNU Emacs 28.1 or later is required.
+
+*   New Features:
+    - Introduce `markdown-yank-dnd-method` what action to perform on the dropped files
+      like `org-mode`.
+
+*   Bug fixes:
+    - `markdown-export` should not output stderr content to output file
+    - Hide wikilink markup as part of `markdown-toggle-markup-hiding` [GH-847][]
+    - Angle URL fontify issue which was introduced by [GH-861][] [GH-895][]
+
+*   Improvements:
+    - Support drag and drop features on Windows and multiple files' drag and drop
+    - Added cmark and cmark-gfm to the markdown command list.
+    - Disable `imenu-submenus-on-top` by default [GH-882][]
+
+  [gh-847]: https://github.com/jrblevin/markdown-mode/issues/847
+  [gh-861]: https://github.com/jrblevin/markdown-mode/pull/861
+  [gh-882]: https://github.com/jrblevin/markdown-mode/issues/882
+  [gh-891]: https://github.com/jrblevin/markdown-mode/issues/891
+  [gh-895]: https://github.com/jrblevin/markdown-mode/issues/895
+
+# Markdown Mode 2.7
 
 *   New Features:
     - Variable `markdown-follow-link-functions` extends
@@ -13,6 +38,8 @@
       variable `markdown-special-ctrl-a/e`, like Org mode.
     - Trailing whitespace characters for line breaks are hidden when using
       `markdown-hide-markup`
+    - `fill-paragraph` considers GFM alert syntax [GH-838][]
+    - Add new flag `markdown-wiki-link-retain-case` [GH-839][]
 
 *   Bug fixes:
     - Don't highlight superscript/subscript in math inline/block [GH-802][]
@@ -20,19 +47,38 @@
     - Fix the regexp in the download languages script [GH-827][]
     - Don't hide backslashes in code blocks when using `markdown-hide-markup`
       and `markdown-fontify-code-blocks-natively` together [GH-766][]
+    - Fix `markdown-fontify-whole-heading-line` regression [GH-848][]
+    - Fix using fundamental-mode issue when editting code block [GH-868][]
+    - Fix highlighting URL in angle brackes[GH-822][]
 
 *   Improvements:
     - Apply url-unescape against URL in an inline link [GH-805][]
     - Show mode toggle message only if it is called interactively
     - Copy `markdown-css-paths` in the output buffer [GH-834][]
+    - Change temporary buffer name according to the Emacs naming convention [GH-848][]
+    - Mark `markdown-css-paths` safe as file local variables [GH-834][]
+    - Resolve style sheets in `markdown-css-paths` relative to the Markdown file
+      (if the path starts with `./` or `../`) [GH-855][] [GH-870][]
+    - Don't insert list item in code block [GH-841][]
+    - Don't set mouse face if `markdown-mouse-follow-link` is nil [GH-879][]
 
   [gh-780]: https://github.com/jrblevin/markdown-mode/issues/780
   [gh-802]: https://github.com/jrblevin/markdown-mode/issues/802
   [gh-804]: https://github.com/jrblevin/markdown-mode/issues/804
   [gh-805]: https://github.com/jrblevin/markdown-mode/issues/805
   [gh-817]: https://github.com/jrblevin/markdown-mode/issues/817
+  [gh-822]: https://github.com/jrblevin/markdown-mode/issues/822
   [gh-827]: https://github.com/jrblevin/markdown-mode/issues/827
   [gh-834]: https://github.com/jrblevin/markdown-mode/issues/834
+  [gh-838]: https://github.com/jrblevin/markdown-mode/issues/838
+  [gh-839]: https://github.com/jrblevin/markdown-mode/issues/839
+  [gh-841]: https://github.com/jrblevin/markdown-mode/issues/841
+  [gh-845]: https://github.com/jrblevin/markdown-mode/issues/845
+  [gh-848]: https://github.com/jrblevin/markdown-mode/issues/848
+  [gh-855]: https://github.com/jrblevin/markdown-mode/issues/855
+  [gh-868]: https://github.com/jrblevin/markdown-mode/issues/868
+  [gh-870]: https://github.com/jrblevin/markdown-mode/issues/870
+  [gh-879]: https://github.com/jrblevin/markdown-mode/issues/879
 
 # Markdown Mode 2.6
 

@@ -151,7 +151,7 @@ This file is not saved."
                 (unless (eq vals value)
                   (throw 'fail loc))))))
     (when fail-loc
-      (message "Testing range (%d,%d) for property %s equal to %s."
+      (message "Testing that range (%d,%d) for property %s includes %s."
                begin end prop value)
       (message "Expected value (%s) not found in property (%s) at location %d" value prop fail-loc)
       (markdown-test-report-property-range begin end prop))
@@ -162,12 +162,12 @@ This file is not saved."
   (let ((fail-loc
          (catch 'fail
            (dolist (loc (number-sequence begin end))
-             (unless (eq (get-char-property loc prop) value)
+             (unless (equal (get-char-property loc prop) value)
                (throw 'fail loc))))))
     (when fail-loc
-      (message "Testing range (%d,%d) for property %s equal to %s."
+      (message "Testing that range (%d,%d) for property %s equal to %s."
                begin end prop value)
-      (message "Expected value (%s) not found in property (%s) at location %d" value prop fail-loc)
+      (message "Expected value (%s) does not equal property (%s) at location %d" value prop fail-loc)
       (markdown-test-report-property-range begin end prop))
     (should-not fail-loc)))
 
@@ -2109,6 +2109,17 @@ See GH-245."
       (should (string-equal (buffer-string) "   -   [X] item\n\n"))
       (should (= (point) 18)))))
 
+(ert-deftest test-markdown-indentation/not-insert-list-item-in-code-block ()
+  "Don't insert new item if here is in code."
+  (let ((markdown-indent-on-enter 'indent-and-new-item))
+    (markdown-test-string "```
+  - foo
+```"
+      (forward-line)
+      (end-of-line)
+      (call-interactively #'markdown-enter-key)
+      (should-not (looking-back "- ")))))
+
 ;;; Markup hiding tests:
 
 (ert-deftest test-markdown-markup-hiding/italics-1 ()
@@ -2390,6 +2401,13 @@ Detail: https://github.com/jrblevin/markdown-mode/pull/674"
       "[cd\\_z\\_path.m](http://jblevins.org/research/centroid/cd_z_path.m)"
     (markdown-test-range-face-equals 17 65 'markdown-url-face)))
 
+(ert-deftest test-markdown-font-lock/angle-url ()
+  "Test URL highlighting with comma and parenthesis.
+Detail: https://github.com/jrblevin/markdown-mode/issues/895"
+  (markdown-test-string "<https://github.com/jonathanchu/atom-one-dark-theme>"
+    (markdown-test-range-has-face 1 1 'markdown-markup-face)
+    (markdown-test-range-has-face 52 52 'markdown-markup-face)))
+
 (ert-deftest test-markdown-font-lock/url-face-with-comma-and-parenthesis ()
   "Test URL highlighting with comma and parenthesis.
 Detail: https://github.com/jrblevin/markdown-mode/issues/649"
@@ -2466,6 +2484,16 @@ See GH-275."
     (markdown-test-range-has-face 8 11 'markdown-inline-code-face)
     (markdown-test-range-has-face 12 12 'markdown-markup-face)
     (markdown-test-range-has-face 18 18 'markdown-markup-face)))
+
+(ert-deftest test-markdown-font-lock/ignore-uri-in-inline-code ()
+  "Avoid rendering URIs inside inline code."
+  (markdown-test-string
+      "`<http:foo>` t `a <http:bar> b` <http:`bar>` t `<http`:bar>`<http:`bar>"
+    (markdown-test-range-has-face 2 11 'markdown-inline-code-face)
+    (markdown-test-range-has-face 17 30 'markdown-inline-code-face)
+    (markdown-test-range-has-face 40 43 'markdown-inline-code-face)
+    (markdown-test-range-has-face 49 53 'markdown-inline-code-face)
+    (markdown-test-range-has-face 61 66 'markdown-inline-code-face)))
 
 (ert-deftest test-markdown-font-lock/italics-in-reference-definitions ()
   "Test not matching italics in reference definitions across lines."
@@ -3073,19 +3101,17 @@ puts markdown.to_html
   (let ((markdown-fontify-whole-heading-line t))
     (let ((markdown-hide-markup nil))
       (markdown-test-string "## abc  \n"
-                            (markdown-test-range-has-face 4 9 'markdown-header-face-2))
+        (markdown-test-range-has-face 1 8 'markdown-header-face-2))
       (markdown-test-string "## abc ##\n"
-                            (markdown-test-range-has-face 4 6 'markdown-header-face-2)
-                            (markdown-test-range-has-face 7 10 'markdown-header-delimiter-face)))
+        (markdown-test-range-has-face 1 9 'markdown-header-face-2)))
 
     (let ((markdown-hide-markup t))
       (markdown-test-string "## abc  \n"
-                            (markdown-test-range-has-face 4 9 'markdown-header-face-2))
+        (markdown-test-range-has-face 4 9 'markdown-header-face-2))
       (markdown-test-string "## abc ##\n"
-                            (markdown-test-range-has-face 4 6 'markdown-header-face-2)
-                            (markdown-test-range-has-face 7 9 'markdown-header-delimiter-face)
-                            (markdown-test-range-has-face 10 10 'markdown-header-face-2))
-      )))
+        (markdown-test-range-has-face 4 6 'markdown-header-face-2)
+        (markdown-test-range-has-face 7 9 'markdown-header-delimiter-face)
+        (markdown-test-range-has-face 10 10 'markdown-header-face-2)))))
 
 (ert-deftest test-markdown-font-lock/setext-1-letter ()
   "An edge case for level-one setext headers."
@@ -3179,6 +3205,18 @@ Detail: https://github.com/jrblevin/markdown-mode/issues/716"
     (while (re-search-forward "[][()]" nil t)
       (markdown-test-range-has-face (match-beginning 0) (1- (match-end 0)) 'markdown-markup-face)
       (markdown-test-range-has-face (match-beginning 0) (1- (match-end 0)) 'markdown-table-face))))
+
+(ert-deftest test-markdown-font-lock/mouse-face-in-link ()
+  "Test links of mouse face.
+Detail: https://github.com/jrblevin/markdown-mode/issues/879"
+  (markdown-test-string "[foo](https://example.com)"
+    (should (get-text-property 7 'mouse-face))
+    (should (get-text-property 25 'mouse-face)))
+
+  (let ((markdown-mouse-follow-link nil))
+    (markdown-test-string "[foo](https://example.com)"
+      (should-not (get-text-property 7 'mouse-face))
+      (should-not (get-text-property 25 'mouse-face)))))
 
 (ert-deftest test-markdown-font-lock/comment-hanging-indent ()
   "Test comments with hanging indentation."
@@ -4381,12 +4419,17 @@ x: x
 
 (ert-deftest test-markdown-parsing/get-lang-mode ()
   "Test `markdown-get-lang-mode'.
-Do not load major-mode function if it isn't in auto-mode-alist.
-Details: https://github.com/jrblevin/markdown-mode/issues/761"
+Do not load tree-sitter-mode function if it is in neither auto-mode-alist nor major-mode-remap-alist.
+Details:
+- https://github.com/jrblevin/markdown-mode/issues/761
+- https://github.com/jrblevin/markdown-mode/issues/868"
   (should (eq (markdown-get-lang-mode "emacs-lisp") 'emacs-lisp-mode))
 
-  (let ((auto-mode-alist nil))
-    (should (null (markdown-get-lang-mode "emacs-lisp")))))
+  (when (and (fboundp 'treesit-language-available-p)
+             (funcall 'treesit-language-available-p 'python))
+    (let ((auto-mode-alist nil)
+          (major-mode-remap-alist nil))
+      (should (null (markdown--lang-mode-predicate 'python-ts-mode))))))
 
 (ert-deftest test-markdown-parsing/get-lang-mode-from-remap-alist ()
   "Test `markdown-get-lang-mode' from major-mode-remap-alist.
@@ -5730,39 +5773,24 @@ http://example.com \"title\"  )
 
 (ert-deftest test-markdown-wiki-link/font-lock ()
   "Test font lock faces for wiki links."
-  ;; If `temporary-file-directory' contains an inaccessible
-  ;; subdirectory, `markdown-fontify-buffer-wiki-links' fails because
-  ;; it calls `directory-files-recursively' on the directory, which
-  ;; fails because of
-  ;; <https://debbugs.gnu.org/cgi/bugreport.cgi?bug=28567>.  To fix
-  ;; this, we run the entire test in a new subdirectory of
-  ;; `temporary-file-directory', which is guaranteed to not contain
-  ;; any inaccessible directories.
-  (let ((temporary-file-directory
-         (file-name-as-directory (make-temp-file "markdown-test" :dir-flag))))
-    (markdown-test-temp-file "wiki-links.text"
-      (let* ((fn (concat (file-name-directory buffer-file-name)
-                         "inline.text"))
-             (markdown-enable-wiki-links t))
-        ;; Create inline.text in the same temp directory, refontify
-        (write-region "" nil fn nil 1)
-        (markdown-fontify-buffer-wiki-links)
-        ;; Confirm location of first wiki link
-        (should (eq (markdown-next-link) 8))
-        ;; First wiki link doesn't have a corresponding file
-        (markdown-test-range-has-property 8 20 'font-lock-face 'markdown-missing-link-face)
-        ;; Second wiki link doesn't have a corresponding file
-        (should (eq (markdown-next-link) 73))
-        (markdown-test-range-has-property 73 88 'font-lock-face 'markdown-missing-link-face)
-        ;; Move to third wiki link, and create the missing file
-        (should (eq (markdown-next-link) 155))
-        (should (string-equal (markdown-wiki-link-link) "inline"))
-        (markdown-test-range-has-property 155 164 'font-lock-face 'markdown-link-face)
-        ;; Check wiki links in code blocks
-        (markdown-test-range-has-face 360 395 'markdown-pre-face)
-        ;; Remove temporary files
-        (delete-file fn)))
-    (delete-directory temporary-file-directory)))
+  (let ((markdown-wiki-link-alias-first nil)
+        (markdown-wiki-link-search-type '(project))
+        (markdown-wiki-link-fontify-missing t)
+        (markdown-enable-wiki-links t))
+    (markdown-test-file "wiki-links.text"
+      ;; Confirm location of first wiki link
+      (should (eq (markdown-next-link) 8))
+      ;; First wiki link doesn't have a corresponding file
+      (markdown-test-range-has-property 10 18 'face 'markdown-missing-link-face)
+      ;; Second wiki link doesn't have a corresponding file
+      (should (eq (markdown-next-link) 73))
+      (markdown-test-range-has-property 81 86 'face 'markdown-missing-link-face)
+      ;; Third link DOES have a corresponding file
+      (should (eq (markdown-next-link) 155))
+      (should (string-equal (markdown-wiki-link-link) "inline"))
+      (markdown-test-range-has-property 157 162 'face 'markdown-missing-link-face)
+      ;; Check wiki links in code blocks
+      (markdown-test-range-has-face 370 405 'markdown-code-face))))
 
 (ert-deftest test-markdown-wiki-link/kill ()
   "Simple tests for `markdown-kill-thing-at-point' for wiki links."
@@ -6109,6 +6137,16 @@ bar baz"
     (markdown-fill-paragraph)
     (should (string= (buffer-string) "- foo bar baz"))))
 
+(ert-deftest test-markdown-filling/gfm-alert ()
+  "Fill paragraph at GFM alert."
+  (let ((levels '("NOTE" "TIP" "IMPORTANT" "WARNING" "CAUTION"))
+        (template "> [!%s]\foo bar baz"))
+    (dolist (level levels)
+      (let ((input (format template level)))
+        (markdown-test-string-mode 'gfm-mode input
+          (markdown-fill-paragraph)
+          (should (string= (buffer-string) input)))))))
+
 ;;; Export tests:
 
 (ert-deftest test-markdown-hook/xhtml-standalone ()
@@ -6174,17 +6212,44 @@ bar baz"
       (kill-buffer obuffer)
       (delete-file ofile))))
 
-(ert-deftest test-markdown-export/buffer-local-css-path ()
-  "Test buffer local `markdown-css-paths'"
-  (let ((markdown-css-paths '("./global.css")))
+(ert-deftest test-markdown-export/url-css-path ()
+  "Test `markdown-css-paths' as URL."
+  (let ((markdown-css-paths '("http://www.example.com/style.css")))
     (markdown-test-temp-file "inline.text"
-      (setq-local markdown-css-paths '("./local.css"))
       (let* ((markdown-export-kill-buffer nil)
              (file (markdown-export))
              (buffer (get-file-buffer file)))
         (with-current-buffer buffer
           (goto-char (point-min))
-          (should (search-forward "href=\"./local.css\"")))
+          (should (search-forward "href=\"http://www.example.com/style.css\"")))
+        (kill-buffer buffer)
+        (delete-file file)))))
+
+(ert-deftest test-markdown-export/buffer-local-css-path ()
+  "Test buffer local `markdown-css-paths'"
+  (let ((markdown-css-paths '("/global.css")))
+    (markdown-test-temp-file "inline.text"
+      (setq-local markdown-css-paths '("/local.css"))
+      (let* ((markdown-export-kill-buffer nil)
+             (file (markdown-export))
+             (buffer (get-file-buffer file)))
+        (with-current-buffer buffer
+          (goto-char (point-min))
+          (should (search-forward "href=\"/local.css\"")))
+        (kill-buffer buffer)
+        (delete-file file)))))
+
+(ert-deftest test-markdown-export/relative-css-path ()
+  "Test relative `markdown-css-paths'."
+  (let ((markdown-css-paths '("./style.css")))
+    (markdown-test-temp-file "inline.text"
+      (let* ((markdown-export-kill-buffer nil)
+             (file (markdown-export))
+             (buffer (get-file-buffer file))
+             (expanded-path (concat default-directory "style.css")))
+        (with-current-buffer buffer
+          (goto-char (point-min))
+          (should (search-forward (format "href=\"%s\"" expanded-path))))
         (kill-buffer buffer)
         (delete-file file)))))
 
@@ -7012,7 +7077,7 @@ x|"
     (markdown-indent-region (line-beginning-position) (line-end-position) nil)
     (should (string-equal (buffer-string) " #. abc\n    def\n"))))
 
-(ert-deftest test-markdown-ext/wiki-link-rules ()
+(ert-deftest test-markdown/wiki-link-rules ()
   "Test wiki link search rules and font lock for missing pages."
   (let ((markdown-enable-wiki-links t)
         (markdown-wiki-link-fontify-missing t)
@@ -7022,6 +7087,7 @@ x|"
       (unwind-protect
           (progn
             (markdown-mode)
+            (font-lock-ensure)
             ;; search rules
             (should (string-match-p
                      "/sub/foo$"
@@ -7030,16 +7096,20 @@ x|"
                      (markdown-convert-wiki-link-to-filename "doesnotexist")
                      "doesnotexist"))
             ;; font lock
-            (markdown-test-range-has-property 1 11 'font-lock-face 'markdown-link-face)
-            (markdown-test-range-has-property 14 33 'font-lock-face 'markdown-missing-link-face)
-            (markdown-test-range-has-property 36 42 'font-lock-face 'markdown-link-face)
-            (markdown-test-range-has-property 45 60 'font-lock-face 'markdown-missing-link-face))
+            (markdown-test-range-has-property  1  2 'face 'markdown-markup-face)
+            (markdown-test-range-has-property  3  9 'face 'markdown-link-face)
+            (markdown-test-range-has-property 10 11 'face 'markdown-markup-face)
+            (markdown-test-range-has-property 16 31 'face 'markdown-missing-link-face)
+            (markdown-test-range-has-property 38 40 'face 'markdown-link-face)
+            (markdown-test-range-has-property 47 58 'face 'markdown-missing-link-face)
+            (markdown-test-range-has-property 65 74 'face 'markdown-link-face))
         (kill-buffer)))
     (progn
       (find-file (expand-file-name "wiki/sub/foo" markdown-test-dir))
       (unwind-protect
           (progn
             (markdown-mode)
+            (font-lock-ensure)
             ;; search rules
             (should (string-match-p
                      "/wiki/root$"
@@ -7048,11 +7118,11 @@ x|"
                      (markdown-convert-wiki-link-to-filename "doesnotexist")
                      "doesnotexist"))
             ;; font lock
-            (markdown-test-range-has-property 1 16 'font-lock-face 'markdown-missing-link-face)
-            (markdown-test-range-has-property 19 26 'font-lock-face 'markdown-link-face))
+            (markdown-test-range-has-property  3 14 'face 'markdown-missing-link-face)
+            (markdown-test-range-has-property 21 24 'face 'markdown-link-face))
         (kill-buffer)))))
 
-(ert-deftest test-markdown-ext/wiki-link-keep-match-data ()
+(ert-deftest test-markdown/wiki-link-keep-match-data ()
   "Test that markdown-wiki-link-p keeps expected match data.
 Detail: https://github.com/jrblevin/markdown-mode/pull/590"
   (let ((markdown-enable-wiki-links t)
@@ -7069,7 +7139,7 @@ Detail: https://github.com/jrblevin/markdown-mode/pull/590"
             (should (string= (markdown-wiki-link-link) "Zettel Markdown")))
         (kill-buffer)))))
 
-(ert-deftest test-markdown-ext/wiki-link-search-under-project ()
+(ert-deftest test-markdown/wiki-link-search-under-project ()
   "Test that searching link under project root."
   (let ((markdown-enable-wiki-links t)
         (markdown-link-space-sub-char " ")
@@ -7088,7 +7158,26 @@ Detail: https://github.com/jrblevin/markdown-mode/pull/590"
               (should (string= (expand-file-name link) expected))))
         (kill-buffer)))))
 
-(ert-deftest test-markdown-ext/wiki-link-major-mode ()
+(ert-deftest test-markdown-ext/wiki-link-retain-case ()
+  "Test that searching link under project root."
+  (let ((markdown-wiki-link-retain-case nil))
+    (find-file "wiki/pr666/jump_wiki_link.md")
+    (unwind-protect
+        (progn
+          (gfm-mode)
+          (let ((link-file-name (markdown-convert-wiki-link-to-filename "FOOBAR")))
+            (should (string= "Foobar.md" (file-name-nondirectory link-file-name)))))
+      (kill-buffer)))
+  (let ((markdown-wiki-link-retain-case t))
+    (find-file "wiki/pr666/jump_wiki_link.md")
+    (unwind-protect
+        (progn
+          (gfm-mode)
+          (let ((link-file-name (markdown-convert-wiki-link-to-filename "FOOBAR")))
+            (should (string= "FOOBAR.md" (file-name-nondirectory link-file-name)))))
+      (kill-buffer))))
+
+(ert-deftest test-markdown/wiki-link-major-mode ()
   "Test major-mode of linked page."
   (let ((markdown-enable-wiki-links t)
         (auto-mode-alist (cons '("bar\\.md" . gfm-mode) auto-mode-alist)))
@@ -7101,7 +7190,7 @@ Detail: https://github.com/jrblevin/markdown-mode/pull/590"
           (should (eq major-mode 'gfm-mode)))
       (kill-buffer))))
 
-(ert-deftest test-markdown-ext/wiki-link-nonexistent-file ()
+(ert-deftest test-markdown/wiki-link-nonexistent-file ()
   "Test following wiki link to nonexistent file visits the buffer."
   (let ((markdown-enable-wiki-links t))
     (find-file (expand-file-name "wiki/foo.md" markdown-test-dir))
